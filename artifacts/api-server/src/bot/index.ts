@@ -235,7 +235,90 @@ interface GameSession {
 
 const gameSessions = new Map<string, GameSession>();
 
+async function sendVoteButtons(session: GameSession) {
+  const ch = client.channels.cache.get(session.channelId) as TextChannel | undefined;
+  if (!ch) return;
+
+  const alivePlayers = Array.from(session.players.entries()).filter(([, p]) => p.alive);
+
+  const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+  let row = new ActionRowBuilder<ButtonBuilder>();
+  let count = 0;
+
+  for (const [uid] of alivePlayers) {
+    let username = "Unknown";
+    try {
+      const u = await client.users.fetch(uid);
+      username = u.username;
+    } catch {}
+
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`vote_${uid}`)
+        .setLabel(`⚡ ${username}`)
+        .setStyle(ButtonStyle.Danger)
+    );
+    count++;
+
+    if (count % 5 === 0) {
+      rows.push(row);
+      row = new ActionRowBuilder<ButtonBuilder>();
+    }
+  }
+  if (count % 5 !== 0) rows.push(row);
+
+  await ch.send({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0xfee75c)
+        .setTitle("🗳️ CODEYNTA — BILAABMAY!")
+        .setDescription(
+          "**Qofka aad shaki ku qabto dhufo badhanka!**\n" +
+          "Qof walba hal cod ayuu leeyahay.\n" +
+          `👥 ${alivePlayers.length} qof nool`
+        )
+        .setTimestamp(),
+    ],
+    components: rows.slice(0, 5),
+  });
+}
+
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isButton()) {
+    const { customId, guildId } = interaction;
+    if (!guildId || !customId.startsWith("vote_")) return;
+
+    const session = gameSessions.get(guildId);
+    if (!session || session.phase !== "discussion") {
+      await interaction.reply({ content: "❌ Hadda codeyn ma socoto.", ephemeral: true });
+      return;
+    }
+
+    const voterId = interaction.user.id;
+    if (!session.players.has(voterId) || !session.players.get(voterId)?.alive) {
+      await interaction.reply({ content: "❌ Adigoo nool baad codeyn kartaa.", ephemeral: true });
+      return;
+    }
+
+    const targetId = customId.replace("vote_", "");
+    if (!session.players.has(targetId) || !session.players.get(targetId)?.alive) {
+      await interaction.reply({ content: "❌ Qofkaas ciyaarta kuma jiro.", ephemeral: true });
+      return;
+    }
+
+    const alreadyVoted = session.votes.has(voterId);
+    session.votes.set(voterId, targetId);
+
+    const targetUser = await client.users.fetch(targetId).catch(() => null);
+    await interaction.reply({
+      content: alreadyVoted
+        ? `🔄 Coddaadii waxaa loo beddelay **${targetUser?.username ?? targetId}**.`
+        : `✅ Waxaad codeysay **${targetUser?.username ?? targetId}**.`,
+      ephemeral: true,
+    });
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName, guildId } = interaction;
@@ -342,26 +425,15 @@ client.on("interactionCreate", async (interaction) => {
             new EmbedBuilder()
               .setColor(0xfee75c)
               .setTitle("💬 Doodda — 2 Daqiiqo!")
-              .setDescription("Doodda bilaabma! Ciyaartoydu waxay ku doodaan cidda laga shakisan yahay.\nIsticmaal `/vote @qof` si aad u codeeyso."),
+              .setDescription(
+                "Doodda bilaabma! Ciyaartoydu waxay ku doodaan cidda laga shakisan yahay.\n" +
+                "⬇️ **Hoos u fiiri badhannada codeynta!**"
+              ),
           ],
         });
+        await sendVoteButtons(session);
       }
     }, 60000);
-  }
-
-  if (commandName === "vote") {
-    const session = gameSessions.get(guildId);
-    if (!session || session.phase !== "discussion") {
-      await interaction.reply({ content: "❌ Hadda cod ma la bixin karo.", ephemeral: true });
-      return;
-    }
-    const target = interaction.options.getUser("target");
-    if (!target) {
-      await interaction.reply({ content: "❌ Qof dooro.", ephemeral: true });
-      return;
-    }
-    session.votes.set(interaction.user.id, target.id);
-    await interaction.reply({ content: `✅ Waxaad codeysay **${target.username}**.`, ephemeral: true });
   }
 
   if (commandName === "endvote") {

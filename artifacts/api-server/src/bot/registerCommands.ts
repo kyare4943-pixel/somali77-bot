@@ -9,14 +9,8 @@ const commands = [
     .setDescription("Bilow ciyaarta (host kaliya)")
     .setDefaultMemberPermissions("8"),
   new SlashCommandBuilder()
-    .setName("vote")
-    .setDescription("Codeey qof aad shakisnaan")
-    .addUserOption((o) =>
-      o.setName("target").setDescription("Qofka aad codeysayso").setRequired(true)
-    ),
-  new SlashCommandBuilder()
     .setName("endvote")
-    .setDescription("Dhamee codeynta")
+    .setDescription("Dhamee codeynta oo saaro qofka ugu codka badnaa")
     .setDefaultMemberPermissions("8"),
   new SlashCommandBuilder()
     .setName("kick")

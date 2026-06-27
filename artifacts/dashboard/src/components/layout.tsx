@@ -48,6 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
+    <SidebarProvider>
     <div className="flex h-screen w-full bg-background overflow-hidden">
       <Sidebar className="border-r border-border bg-card">
         <SidebarHeader className="p-4 flex items-center gap-3">
@@ -87,5 +88,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
+    </SidebarProvider>
   );
 }
